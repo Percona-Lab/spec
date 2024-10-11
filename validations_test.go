@@ -75,7 +75,6 @@ func TestValidations(t *testing.T) {
 	expectedSV.PatternProperties = nil
 	expectedSV.MinProperties = nil
 	expectedSV.MaxProperties = nil
-	val = mkVal()
 
 	val = mkVal()
 	cv.SetValidations(val)
@@ -110,7 +109,7 @@ func TestValidations(t *testing.T) {
 	require.False(t, cv.HasArrayValidations())
 
 	sv.SetValidations(val)
-	sv.ClearObjectValidations(func(validation string, value interface{}) {
+	sv.ClearObjectValidations(func(validation string, _ interface{}) {
 		switch validation {
 		case "minProperties", "maxProperties", "patternProperties":
 			return

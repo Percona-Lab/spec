@@ -16,7 +16,7 @@ package spec
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -41,6 +41,37 @@ var (
 	PetStoreJSONMessage = json.RawMessage([]byte(PetStore20))
 	specs               = filepath.Join("fixtures", "specs")
 )
+
+func TestExpand_Issue148(t *testing.T) {
+	fp := filepath.Join("fixtures", "bugs", "schema-148.json")
+	b, err := jsonDoc(fp)
+	require.NoError(t, err)
+
+	assertAdditionalProps := func(sp Swagger) func(*testing.T) {
+		return func(t *testing.T) {
+			require.Len(t, sp.Definitions, 2)
+
+			require.Contains(t, sp.Definitions, "empty")
+			empty := sp.Definitions["empty"]
+			require.NotNil(t, empty.AdditionalProperties)
+			require.NotNil(t, empty.AdditionalProperties.Schema)
+			require.True(t, empty.AdditionalProperties.Allows)
+
+			require.Contains(t, sp.Definitions, "false")
+			additionalIsFalse := sp.Definitions["false"]
+			require.NotNil(t, additionalIsFalse.AdditionalProperties)
+			require.Nil(t, additionalIsFalse.AdditionalProperties.Schema)
+			require.False(t, additionalIsFalse.AdditionalProperties.Allows)
+		}
+	}
+
+	var sp Swagger
+	require.NoError(t, json.Unmarshal(b, &sp))
+	t.Run("check additional properties", assertAdditionalProps(sp))
+
+	require.NoError(t, ExpandSpec(&sp, nil))
+	t.Run("check additional properties after expansion", assertAdditionalProps(sp))
+}
 
 func TestExpand_KnownRef(t *testing.T) {
 	// json schema draft 4 meta schema is embedded by default: it resolves without setup
@@ -351,11 +382,11 @@ func TestExpand_ContinueOnError(t *testing.T) {
 	specPath := filepath.Join("fixtures", "expansion", "missingRef.json")
 
 	defer log.SetOutput(os.Stdout)
-	log.SetOutput(ioutil.Discard)
+	log.SetOutput(io.Discard)
 
 	// missing $ref in spec
 	missingRefDoc, err := jsonDoc(specPath)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	testCase := struct {
 		Input    *Swagger `json:"input"`
@@ -369,7 +400,7 @@ func TestExpand_ContinueOnError(t *testing.T) {
 	}
 	require.NoError(t, ExpandSpec(testCase.Input, opts))
 
-	assert.Equal(t, testCase.Input, testCase.Expected, "Should continue expanding spec when a definition can't be found.")
+	assert.Equal(t, testCase.Expected, testCase.Input, "Should continue expanding spec when a definition can't be found.")
 
 	// missing $ref in items
 	doc, err := jsonDoc("fixtures/expansion/missingItemRef.json")
@@ -787,25 +818,24 @@ func resolutionContextServer() *httptest.Server {
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		if req.URL.Path == "/resolution.json" {
 
-			b, _ := ioutil.ReadFile(filepath.Join(specs, "resolution.json"))
+			b, _ := os.ReadFile(filepath.Join(specs, "resolution.json"))
 			var ctnt map[string]interface{}
 			_ = json.Unmarshal(b, &ctnt)
 			ctnt["id"] = servedAt
 
 			rw.Header().Set("Content-Type", "application/json")
-			rw.WriteHeader(200)
+			rw.WriteHeader(http.StatusOK)
 			bb, _ := json.Marshal(ctnt)
 			_, _ = rw.Write(bb)
 			return
 		}
 		if req.URL.Path == "/resolution2.json" {
-			b, _ := ioutil.ReadFile(filepath.Join(specs, "resolution2.json"))
+			b, _ := os.ReadFile(filepath.Join(specs, "resolution2.json"))
 			var ctnt map[string]interface{}
 			_ = json.Unmarshal(b, &ctnt)
 			ctnt["id"] = servedAt
 
 			rw.Header().Set("Content-Type", "application/json")
-			rw.WriteHeader(200)
 			bb, _ := json.Marshal(ctnt)
 			_, _ = rw.Write(bb)
 			return
@@ -813,7 +843,6 @@ func resolutionContextServer() *httptest.Server {
 
 		if req.URL.Path == "/boolProp.json" {
 			rw.Header().Set("Content-Type", "application/json")
-			rw.WriteHeader(200)
 			b, _ := json.Marshal(map[string]interface{}{
 				"type": "boolean",
 			})
@@ -823,7 +852,6 @@ func resolutionContextServer() *httptest.Server {
 
 		if req.URL.Path == "/deeper/stringProp.json" {
 			rw.Header().Set("Content-Type", "application/json")
-			rw.WriteHeader(200)
 			b, _ := json.Marshal(map[string]interface{}{
 				"type": "string",
 			})
@@ -833,7 +861,6 @@ func resolutionContextServer() *httptest.Server {
 
 		if req.URL.Path == "/deeper/arrayProp.json" {
 			rw.Header().Set("Content-Type", "application/json")
-			rw.WriteHeader(200)
 			b, _ := json.Marshal(map[string]interface{}{
 				"type": "array",
 				"items": map[string]interface{}{
@@ -911,7 +938,7 @@ func TestExpand_RemoteRefWithNestedResolutionContextWithFragment(t *testing.T) {
 func TestExpand_TransitiveRefs(t *testing.T) {
 	basePath := filepath.Join(specs, "todos.json")
 
-	rawSpec, err := ioutil.ReadFile(basePath)
+	rawSpec, err := os.ReadFile(basePath)
 	require.NoError(t, err)
 
 	var spec *Swagger
@@ -1071,6 +1098,53 @@ func TestExpand_ExtraItems(t *testing.T) {
           }
          }
 			 }`, jazon)
+}
+
+func TestExpand_Issue145(t *testing.T) {
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+	pseudoRoot := normalizeBase(filepath.Join(cwd, rootBase))
+
+	// assert the internal behavior of baseForRoot()
+	t.Run("with nil root, empty cache", func(t *testing.T) {
+		cache := defaultResolutionCache()
+		require.Equal(t, pseudoRoot, baseForRoot(nil, cache))
+
+		t.Run("empty root is cached", func(t *testing.T) {
+			value, ok := cache.Get(pseudoRoot)
+			require.True(t, ok) // found in cache
+			asMap, ok := value.(map[string]interface{})
+			require.True(t, ok)
+			require.Empty(t, asMap)
+		})
+	})
+
+	t.Run("with non-nil root, empty cache", func(t *testing.T) {
+		cache := defaultResolutionCache()
+		require.Equal(t, pseudoRoot, baseForRoot(map[string]interface{}{"key": "arbitrary"}, cache))
+
+		t.Run("non-empty root is cached", func(t *testing.T) {
+			value, ok := cache.Get(pseudoRoot)
+			require.True(t, ok) // found in cache
+			asMap, ok := value.(map[string]interface{})
+			require.True(t, ok)
+			require.Contains(t, asMap, "key")
+			require.Equal(t, "arbitrary", asMap["key"])
+		})
+
+		t.Run("with nil root, non-empty cache", func(t *testing.T) {
+			require.Equal(t, pseudoRoot, baseForRoot(nil, cache))
+
+			t.Run("non-empty root is kept", func(t *testing.T) {
+				value, ok := cache.Get(pseudoRoot)
+				require.True(t, ok) // found in cache
+				asMap, ok := value.(map[string]interface{})
+				require.True(t, ok)
+				require.Contains(t, asMap, "key")
+				require.Equal(t, "arbitrary", asMap["key"])
+			})
+		})
+	})
 }
 
 // PetStore20 json doc for swagger 2.0 pet store

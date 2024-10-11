@@ -219,6 +219,30 @@ func TestNormalizer_NormalizeURI(t *testing.T) {
 				base:      `https://example.com//base/Spec.json`,
 				expOutput: `https://example.com/base/Resources.yaml#/definitions/Pets`,
 			},
+			{
+				// escaped characters in base (1)
+				refPath:   `Resources.yaml#/definitions/Pets`,
+				base:      `https://example.com/base (x86)/Spec.json`,
+				expOutput: `https://example.com/base%20%28x86%29/Resources.yaml#/definitions/Pets`,
+			},
+			{
+				// escaped characters in base (2)
+				refPath:   `Resources.yaml#/definitions/Pets`,
+				base:      `https://example.com/base [x86]/Spec.json`,
+				expOutput: `https://example.com/base%20%5Bx86%5D/Resources.yaml#/definitions/Pets`,
+			},
+			{
+				// escaped characters in joined fragment
+				refPath:   `Resources.yaml#/definitions (x86)/Pets`,
+				base:      `https://example.com/base/Spec.json`,
+				expOutput: `https://example.com/base/Resources.yaml#/definitions%20(x86)/Pets`,
+			},
+			{
+				// escaped characters in joined path
+				refPath:   `Resources [x86].yaml#/definitions/Pets`,
+				base:      `https://example.com/base/Spec.json`,
+				expOutput: `https://example.com/base/Resources%20%5Bx86%5D.yaml#/definitions/Pets`,
+			},
 		}
 	}()
 
@@ -245,6 +269,7 @@ func TestNormalizer_NormalizeBase(t *testing.T) {
 	if runtime.GOOS == windowsOS {
 		cwd = "/" + strings.ToLower(filepath.ToSlash(cwd))
 	}
+	const fileScheme = "file:///"
 
 	for _, toPin := range []struct {
 		Base, Expected string
@@ -317,7 +342,7 @@ func TestNormalizer_NormalizeBase(t *testing.T) {
 		{
 			// path clean
 			Base:     "///folder//subfolder///file.json/",
-			Expected: "file:///" + currentDriveLetter + ":/folder/subfolder/file.json",
+			Expected: fileScheme + currentDriveLetter + ":/folder/subfolder/file.json",
 			Windows:  true,
 		},
 		{
@@ -344,18 +369,18 @@ func TestNormalizer_NormalizeBase(t *testing.T) {
 		{
 			// handling dots (3/6): valid, cleaned to /c:/ on windows
 			Base:     "/..",
-			Expected: "file:///" + currentDriveLetter + ":",
+			Expected: fileScheme + currentDriveLetter + ":",
 			Windows:  true,
 		},
 		{
 			// handling dots (4/6): dodgy specification - resolved to /
 			Base:     `file:/.`,
-			Expected: "file:///",
+			Expected: fileScheme,
 		},
 		{
 			// handling dots (5/6): dodgy specification - resolved to /
 			Base:     `file:/..`,
-			Expected: "file:///",
+			Expected: fileScheme,
 		},
 		{
 			// handling dots (6/6)
@@ -377,7 +402,7 @@ func TestNormalizer_NormalizeBase(t *testing.T) {
 		// windows-only cases
 		{
 			Base:     "/base/sub/file.json",
-			Expected: "file:///" + currentDriveLetter + ":/base/sub/file.json", // on windows, filepath.Abs("/a/b") prepends the "c:" drive
+			Expected: fileScheme + currentDriveLetter + ":/base/sub/file.json", // on windows, filepath.Abs("/a/b") prepends the "c:" drive
 			Windows:  true,
 		},
 		{
@@ -421,6 +446,11 @@ func TestNormalizer_NormalizeBase(t *testing.T) {
 			Base:     `file://E:\Base\sub\File.json`,
 			Expected: "file:///e:/base/sub/file.json",
 			Windows:  true,
+		},
+		{
+			// escaped characters in base (1)
+			Base:     `file:///c:/base (x86)/spec.json`,
+			Expected: `file:///c:/base%20%28x86%29/spec.json`,
 		},
 	} {
 		testCase := toPin

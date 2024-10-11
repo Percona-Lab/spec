@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 func assertSerializeJSON(t testing.TB, actual interface{}, expected string) bool {
@@ -28,7 +28,7 @@ func assertSerializeJSON(t testing.TB, actual interface{}, expected string) bool
 	if err != nil {
 		return assert.Fail(t, "unable to marshal to json (%s): %#v", err, actual)
 	}
-	return assert.Equal(t, string(ser), expected)
+	return assert.Equal(t, expected, string(ser))
 }
 
 func assertSerializeYAML(t testing.TB, actual interface{}, expected string) bool {
@@ -36,7 +36,7 @@ func assertSerializeYAML(t testing.TB, actual interface{}, expected string) bool
 	if err != nil {
 		return assert.Fail(t, "unable to marshal to yaml (%s): %#v", err, actual)
 	}
-	return assert.Equal(t, string(ser), expected)
+	return assert.Equal(t, expected, string(ser))
 }
 
 func derefTypeOf(expected interface{}) (tpe reflect.Type) {
@@ -65,7 +65,7 @@ func assertParsesJSON(t testing.TB, actual string, expected interface{}) bool {
 	if !isPointed(expected) {
 		act = reflect.Indirect(parsed).Interface()
 	}
-	return assert.Equal(t, act, expected)
+	return assert.Equal(t, expected, act)
 }
 
 func assertParsesYAML(t testing.TB, actual string, expected interface{}) bool {
@@ -78,7 +78,7 @@ func assertParsesYAML(t testing.TB, actual string, expected interface{}) bool {
 	if !isPointed(expected) {
 		act = reflect.Indirect(parsed).Interface()
 	}
-	return assert.EqualValues(t, act, expected)
+	return assert.EqualValues(t, expected, act)
 }
 
 func TestSerialization_SerializeJSON(t *testing.T) {
