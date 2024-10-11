@@ -2,9 +2,9 @@ package spec
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -175,7 +175,7 @@ func TestExpandCircular_Bitbucket(t *testing.T) {
 
 func TestExpandCircular_ResponseWithRoot(t *testing.T) {
 	rootDoc := new(Swagger)
-	b, err := ioutil.ReadFile(filepath.Join("fixtures", "more_circulars", "resp.json"))
+	b, err := os.ReadFile(filepath.Join("fixtures", "more_circulars", "resp.json"))
 	require.NoError(t, err)
 
 	require.NoError(t, json.Unmarshal(b, rootDoc))
@@ -219,7 +219,7 @@ func TestExpandCircular_SpecExpansion(t *testing.T) {
 
 func TestExpandCircular_RemoteCircularID(t *testing.T) {
 	go func() {
-		err := http.ListenAndServe("localhost:1234", http.FileServer(http.Dir("fixtures/more_circulars/remote")))
+		err := http.ListenAndServe("localhost:1234", http.FileServer(http.Dir("fixtures/more_circulars/remote"))) //#nosec
 		if err != nil {
 			panic(err.Error())
 		}
@@ -232,7 +232,7 @@ func TestExpandCircular_RemoteCircularID(t *testing.T) {
 	assertRefResolve(t, jazon, "", root, &ExpandOptions{RelativeBase: fixturePath})
 	assertRefExpand(t, jazon, "", root, &ExpandOptions{RelativeBase: fixturePath})
 
-	assert.NoError(t, ExpandSchemaWithBasePath(root, nil, &ExpandOptions{}))
+	require.NoError(t, ExpandSchemaWithBasePath(root, nil, &ExpandOptions{}))
 
 	jazon = asJSON(t, root)
 
