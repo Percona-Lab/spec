@@ -1,16 +1,5 @@
-// Copyright 2015 go-swagger maintainers
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-FileCopyrightText: Copyright 2015-2025 go-swagger maintainers
+// SPDX-License-Identifier: Apache-2.0
 
 package spec
 
@@ -18,13 +7,13 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/go-openapi/swag"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/go-openapi/swag/conv"
+	"github.com/go-openapi/testify/v2/assert"
+	"github.com/go-openapi/testify/v2/require"
 )
 
 var schema = Schema{
-	VendorExtensible: VendorExtensible{Extensions: map[string]interface{}{"x-framework": "go-swagger"}},
+	VendorExtensible: VendorExtensible{Extensions: map[string]any{"x-framework": "go-swagger"}},
 	SchemaProps: SchemaProps{
 		Ref:              MustCreateRef("Cat"),
 		Type:             []string{"string"},
@@ -43,7 +32,7 @@ var schema = Schema{
 		MinItems:         int64Ptr(5),
 		UniqueItems:      true,
 		MultipleOf:       float64Ptr(5),
-		Enum:             []interface{}{"hello", "world"},
+		Enum:             []any{"hello", "world"},
 		MaxProperties:    int64Ptr(5),
 		MinProperties:    int64Ptr(1),
 		Required:         []string{"id", "name"},
@@ -66,12 +55,12 @@ var schema = Schema{
 			Description: "the documentation etc",
 			URL:         "http://readthedocs.org/swagger",
 		},
-		Example: []interface{}{
-			map[string]interface{}{
+		Example: []any{
+			map[string]any{
 				"id":   1,
 				"name": "a book",
 			},
-			map[string]interface{}{
+			map[string]any{
 				"id":   2,
 				"name": "the thing",
 			},
@@ -150,13 +139,12 @@ var schemaJSON = `{
 `
 
 func TestSchema(t *testing.T) {
-
-	expected := map[string]interface{}{}
+	expected := map[string]any{}
 	_ = json.Unmarshal([]byte(schemaJSON), &expected)
 	b, err := json.Marshal(schema)
 	require.NoError(t, err)
 
-	var actual map[string]interface{}
+	var actual map[string]any
 	require.NoError(t, json.Unmarshal(b, &actual))
 	assert.Equal(t, expected, actual)
 
@@ -193,12 +181,18 @@ func TestSchema(t *testing.T) {
 	assert.Equal(t, schema.AdditionalProperties, actual2.AdditionalProperties)
 	assert.Equal(t, schema.Extensions, actual2.Extensions)
 
-	examples := actual2.Example.([]interface{})
-	expEx := schema.Example.([]interface{})
-	ex1 := examples[0].(map[string]interface{})
-	ex2 := examples[1].(map[string]interface{})
-	exp1 := expEx[0].(map[string]interface{})
-	exp2 := expEx[1].(map[string]interface{})
+	examples, ok := actual2.Example.([]any)
+	assert.True(t, ok, "actual2.Example is not of type []any")
+	expEx, ok := schema.Example.([]any)
+	assert.True(t, ok, "schema.Example is not of type []any")
+	ex1, ok := examples[0].(map[string]any)
+	assert.True(t, ok, "examples[0] is not of type map[string]any")
+	ex2, ok := examples[1].(map[string]any)
+	assert.True(t, ok, "examples[1] is not of type map[string]any")
+	exp1, ok := expEx[0].(map[string]any)
+	assert.True(t, ok, "expEx[0] is not of type map[string]any")
+	exp2, ok := expEx[1].(map[string]any)
+	assert.True(t, ok, "expEx[1] is not of type map[string]any")
 
 	assert.EqualValues(t, exp1["id"], ex1["id"])
 	assert.Equal(t, exp1["name"], ex1["name"])
@@ -207,18 +201,18 @@ func TestSchema(t *testing.T) {
 }
 
 func BenchmarkSchemaUnmarshal(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		sch := &Schema{}
 		_ = sch.UnmarshalJSON([]byte(schemaJSON))
 	}
 }
 
 func TestSchemaWithValidation(t *testing.T) {
-	s := new(Schema).WithValidations(SchemaValidations{CommonValidations: CommonValidations{MaxLength: swag.Int64(15)}})
-	assert.EqualValues(t, swag.Int64(15), s.MaxLength)
+	s := new(Schema).WithValidations(SchemaValidations{CommonValidations: CommonValidations{MaxLength: conv.Pointer(int64(15))}})
+	assert.Equal(t, conv.Pointer(int64(15)), s.MaxLength)
 
 	val := mkVal()
 	s = new(Schema).WithValidations(val)
 
-	assert.EqualValues(t, val, s.Validations())
+	assert.Equal(t, val, s.Validations())
 }

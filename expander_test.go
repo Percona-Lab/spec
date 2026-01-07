@@ -1,21 +1,12 @@
-// Copyright 2015 go-swagger maintainers
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-FileCopyrightText: Copyright 2015-2025 go-swagger maintainers
+// SPDX-License-Identifier: Apache-2.0
 
 package spec
 
 import (
+	"embed"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -24,8 +15,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/go-openapi/testify/v2/assert"
+	"github.com/go-openapi/testify/v2/require"
 )
 
 const (
@@ -36,11 +27,42 @@ const (
 	extraRefFixture     = "fixtures/expansion/extraRef.json"
 )
 
+//nolint:gochecknoglobals // it's okay to have embedded test fixtures as globals
 var (
+	//go:embed fixtures/*/*.json fixtures/*/*.yaml fixtures/*/*.yml
+	fixtureAssets embed.FS
+
+	// PetStore20 json doc for swagger 2.0 pet store.
+	PetStore20 []byte
+
 	// PetStoreJSONMessage json raw message for Petstore20
-	PetStoreJSONMessage = json.RawMessage([]byte(PetStore20))
-	specs               = filepath.Join("fixtures", "specs")
+	PetStoreJSONMessage json.RawMessage
+	expectedExtraRef    []byte
+	expectedPathItem    []byte
+
+	specs = filepath.Join("fixtures", "specs")
 )
+
+func init() { //nolint:gochecknoinits // it's okay to load embedded fixtures in init().
+	// load embedded fixtures
+
+	var err error
+	PetStore20, err = fixtureAssets.ReadFile("fixtures/expansion/petstore2.0.json")
+	if err != nil {
+		panic(fmt.Sprintf("could not find fixture: %v", err))
+	}
+	PetStoreJSONMessage = json.RawMessage(PetStore20)
+
+	expectedExtraRef, err = fixtureAssets.ReadFile("fixtures/expansion/expectedExtraRef.json")
+	if err != nil {
+		panic(fmt.Sprintf("could not find fixture: %v", err))
+	}
+
+	expectedPathItem, err = fixtureAssets.ReadFile("fixtures/expansion/expectedPathItem.json")
+	if err != nil {
+		panic(fmt.Sprintf("could not find fixture: %v", err))
+	}
+}
 
 func TestExpand_Issue148(t *testing.T) {
 	fp := filepath.Join("fixtures", "bugs", "schema-148.json")
@@ -129,7 +151,6 @@ func TestExpand_EmptySpec(t *testing.T) {
 }
 
 func TestExpand_Spec(t *testing.T) {
-
 	// expansion of a rich spec
 	specPath := filepath.Join("fixtures", "expansion", "all-the-things.json")
 	specDoc, err := jsonDoc(specPath)
@@ -819,7 +840,7 @@ func resolutionContextServer() *httptest.Server {
 		if req.URL.Path == "/resolution.json" {
 
 			b, _ := os.ReadFile(filepath.Join(specs, "resolution.json"))
-			var ctnt map[string]interface{}
+			var ctnt map[string]any
 			_ = json.Unmarshal(b, &ctnt)
 			ctnt["id"] = servedAt
 
@@ -831,7 +852,7 @@ func resolutionContextServer() *httptest.Server {
 		}
 		if req.URL.Path == "/resolution2.json" {
 			b, _ := os.ReadFile(filepath.Join(specs, "resolution2.json"))
-			var ctnt map[string]interface{}
+			var ctnt map[string]any
 			_ = json.Unmarshal(b, &ctnt)
 			ctnt["id"] = servedAt
 
@@ -843,7 +864,7 @@ func resolutionContextServer() *httptest.Server {
 
 		if req.URL.Path == "/boolProp.json" {
 			rw.Header().Set("Content-Type", "application/json")
-			b, _ := json.Marshal(map[string]interface{}{
+			b, _ := json.Marshal(map[string]any{
 				"type": "boolean",
 			})
 			_, _ = rw.Write(b)
@@ -852,7 +873,7 @@ func resolutionContextServer() *httptest.Server {
 
 		if req.URL.Path == "/deeper/stringProp.json" {
 			rw.Header().Set("Content-Type", "application/json")
-			b, _ := json.Marshal(map[string]interface{}{
+			b, _ := json.Marshal(map[string]any{
 				"type": "string",
 			})
 			_, _ = rw.Write(b)
@@ -861,9 +882,9 @@ func resolutionContextServer() *httptest.Server {
 
 		if req.URL.Path == "/deeper/arrayProp.json" {
 			rw.Header().Set("Content-Type", "application/json")
-			b, _ := json.Marshal(map[string]interface{}{
+			b, _ := json.Marshal(map[string]any{
 				"type": "array",
-				"items": map[string]interface{}{
+				"items": map[string]any{
 					"type": "file",
 				},
 			})
@@ -1010,94 +1031,12 @@ func expandRootWithID(t testing.TB, root *Swagger, testcase string) {
 
 func TestExpand_PathItem(t *testing.T) {
 	jazon, _ := expandThisOrDieTrying(t, pathItemsFixture)
-	assert.JSONEq(t, `{
-         "swagger": "2.0",
-         "info": {
-          "title": "PathItems refs",
-          "version": "1.0"
-         },
-         "paths": {
-          "/todos": {
-           "get": {
-            "responses": {
-             "200": {
-              "description": "List Todos",
-              "schema": {
-               "type": "array",
-               "items": {
-                "type": "string"
-               }
-              }
-             },
-             "404": {
-              "description": "error"
-             }
-            }
-           }
-          }
-         }
-			 }`, jazon)
+	assert.JSONEq(t, string(expectedPathItem), jazon)
 }
 
 func TestExpand_ExtraItems(t *testing.T) {
 	jazon, _ := expandThisOrDieTrying(t, extraRefFixture)
-	assert.JSONEq(t, `{
-         "schemes": [
-          "http"
-         ],
-         "swagger": "2.0",
-         "info": {
-          "title": "Supported, but non Swagger 20 compliant $ref constructs",
-          "version": "2.1.0"
-         },
-         "host": "item.com",
-         "basePath": "/extraRefs",
-         "paths": {
-          "/employees": {
-           "get": {
-            "summary": "List Employee Types",
-            "operationId": "LIST-Employees",
-            "parameters": [
-             {
-							"description": "unsupported $ref in simple param",
-              "type": "array",
-              "items": {
-               "$ref": "#/definitions/arrayType"
-              },
-              "name": "myQueryParam",
-              "in": "query"
-             }
-            ],
-            "responses": {
-             "200": {
-							"description": "unsupported $ref in header",
-              "schema": {
-               "type": "string"
-              },
-              "headers": {
-               "X-header": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/definitions/headerType"
-                  }
-							  }
-              }
-             }
-            }
-           }
-          }
-         },
-         "definitions": {
-          "arrayType": {
-           "type": "integer",
-           "format": "int32"
-          },
-          "headerType": {
-           "type": "string",
-           "format": "uuid"
-          }
-         }
-			 }`, jazon)
+	assert.JSONEq(t, string(expectedExtraRef), jazon)
 }
 
 func TestExpand_Issue145(t *testing.T) {
@@ -1113,7 +1052,7 @@ func TestExpand_Issue145(t *testing.T) {
 		t.Run("empty root is cached", func(t *testing.T) {
 			value, ok := cache.Get(pseudoRoot)
 			require.True(t, ok) // found in cache
-			asMap, ok := value.(map[string]interface{})
+			asMap, ok := value.(map[string]any)
 			require.True(t, ok)
 			require.Empty(t, asMap)
 		})
@@ -1121,12 +1060,12 @@ func TestExpand_Issue145(t *testing.T) {
 
 	t.Run("with non-nil root, empty cache", func(t *testing.T) {
 		cache := defaultResolutionCache()
-		require.Equal(t, pseudoRoot, baseForRoot(map[string]interface{}{"key": "arbitrary"}, cache))
+		require.Equal(t, pseudoRoot, baseForRoot(map[string]any{"key": "arbitrary"}, cache))
 
 		t.Run("non-empty root is cached", func(t *testing.T) {
 			value, ok := cache.Get(pseudoRoot)
 			require.True(t, ok) // found in cache
-			asMap, ok := value.(map[string]interface{})
+			asMap, ok := value.(map[string]any)
 			require.True(t, ok)
 			require.Contains(t, asMap, "key")
 			require.Equal(t, "arbitrary", asMap["key"])
@@ -1138,7 +1077,7 @@ func TestExpand_Issue145(t *testing.T) {
 			t.Run("non-empty root is kept", func(t *testing.T) {
 				value, ok := cache.Get(pseudoRoot)
 				require.True(t, ok) // found in cache
-				asMap, ok := value.(map[string]interface{})
+				asMap, ok := value.(map[string]any)
 				require.True(t, ok)
 				require.Contains(t, asMap, "key")
 				require.Equal(t, "arbitrary", asMap["key"])
@@ -1146,286 +1085,3 @@ func TestExpand_Issue145(t *testing.T) {
 		})
 	})
 }
-
-// PetStore20 json doc for swagger 2.0 pet store
-const PetStore20 = `{
-  "swagger": "2.0",
-  "info": {
-    "version": "1.0.0",
-    "title": "Swagger Petstore",
-    "contact": {
-      "name": "Wordnik API Team",
-      "url": "http://developer.wordnik.com"
-    },
-    "license": {
-      "name": "Creative Commons 4.0 International",
-      "url": "http://creativecommons.org/licenses/by/4.0/"
-    }
-  },
-  "host": "petstore.swagger.wordnik.com",
-  "basePath": "/api",
-  "schemes": [
-    "http"
-  ],
-  "paths": {
-    "/pets": {
-      "get": {
-        "security": [
-          {
-            "basic": []
-          }
-        ],
-        "tags": [ "Pet Operations" ],
-        "operationId": "getAllPets",
-        "parameters": [
-          {
-            "name": "status",
-            "in": "query",
-            "description": "The status to filter by",
-            "type": "string"
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "description": "The maximum number of results to return",
-            "type": "integer",
-						"format": "int64"
-          }
-        ],
-        "summary": "Finds all pets in the system",
-        "responses": {
-          "200": {
-            "description": "Pet response",
-            "schema": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/Pet"
-              }
-            }
-          },
-          "default": {
-            "description": "Unexpected error",
-            "schema": {
-              "$ref": "#/definitions/Error"
-            }
-          }
-        }
-      },
-      "post": {
-        "security": [
-          {
-            "basic": []
-          }
-        ],
-        "tags": [ "Pet Operations" ],
-        "operationId": "createPet",
-        "summary": "Creates a new pet",
-        "consumes": ["application/x-yaml"],
-        "produces": ["application/x-yaml"],
-        "parameters": [
-          {
-            "name": "pet",
-            "in": "body",
-            "description": "The Pet to create",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/newPet"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Created Pet response",
-            "schema": {
-              "$ref": "#/definitions/Pet"
-            }
-          },
-          "default": {
-            "description": "Unexpected error",
-            "schema": {
-              "$ref": "#/definitions/Error"
-            }
-          }
-        }
-      }
-    },
-    "/pets/{id}": {
-      "delete": {
-        "security": [
-          {
-            "apiKey": []
-          }
-        ],
-        "description": "Deletes the Pet by id",
-        "operationId": "deletePet",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "description": "ID of pet to delete",
-            "required": true,
-            "type": "integer",
-            "format": "int64"
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "pet deleted"
-          },
-          "default": {
-            "description": "unexpected error",
-            "schema": {
-              "$ref": "#/definitions/Error"
-            }
-          }
-        }
-      },
-      "get": {
-        "tags": [ "Pet Operations" ],
-        "operationId": "getPetById",
-        "summary": "Finds the pet by id",
-        "responses": {
-          "200": {
-            "description": "Pet response",
-            "schema": {
-              "$ref": "#/definitions/Pet"
-            }
-          },
-          "default": {
-            "description": "Unexpected error",
-            "schema": {
-              "$ref": "#/definitions/Error"
-            }
-          }
-        }
-      },
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "description": "ID of pet",
-          "required": true,
-          "type": "integer",
-          "format": "int64"
-        }
-      ]
-    }
-  },
-  "definitions": {
-    "Category": {
-      "id": "Category",
-      "properties": {
-        "id": {
-          "format": "int64",
-          "type": "integer"
-        },
-        "name": {
-          "type": "string"
-        }
-      }
-    },
-    "Pet": {
-      "id": "Pet",
-      "properties": {
-        "category": {
-          "$ref": "#/definitions/Category"
-        },
-        "id": {
-          "description": "unique identifier for the pet",
-          "format": "int64",
-          "maximum": 100.0,
-          "minimum": 0.0,
-          "type": "integer"
-        },
-        "name": {
-          "type": "string"
-        },
-        "photoUrls": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "status": {
-          "description": "pet status in the store",
-          "enum": [
-            "available",
-            "pending",
-            "sold"
-          ],
-          "type": "string"
-        },
-        "tags": {
-          "items": {
-            "$ref": "#/definitions/Tag"
-          },
-          "type": "array"
-        }
-      },
-      "required": [
-        "id",
-        "name"
-      ]
-    },
-    "newPet": {
-      "anyOf": [
-        {
-          "$ref": "#/definitions/Pet"
-        },
-        {
-          "required": [
-            "name"
-          ]
-        }
-      ]
-    },
-    "Tag": {
-      "id": "Tag",
-      "properties": {
-        "id": {
-          "format": "int64",
-          "type": "integer"
-        },
-        "name": {
-          "type": "string"
-        }
-      }
-    },
-    "Error": {
-      "required": [
-        "code",
-        "message"
-      ],
-      "properties": {
-        "code": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "message": {
-          "type": "string"
-        }
-      }
-    }
-  },
-  "consumes": [
-    "application/json",
-    "application/xml"
-  ],
-  "produces": [
-    "application/json",
-    "application/xml",
-    "text/plain",
-    "text/html"
-  ],
-  "securityDefinitions": {
-    "basic": {
-      "type": "basic"
-    },
-    "apiKey": {
-      "type": "apiKey",
-      "in": "header",
-      "name": "X-API-KEY"
-    }
-  }
-}
-`

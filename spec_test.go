@@ -1,16 +1,5 @@
-// Copyright 2015 go-swagger maintainers
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-FileCopyrightText: Copyright 2015-2025 go-swagger maintainers
+// SPDX-License-Identifier: Apache-2.0
 
 package spec_test
 
@@ -20,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/go-openapi/spec"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/go-openapi/testify/v2/assert"
+	"github.com/go-openapi/testify/v2/require"
 )
 
 // Test unitary fixture for dev and bug fixing
@@ -48,7 +37,7 @@ func TestSpec_Issue2743(t *testing.T) {
 			spec.ExpandSpec(sp, &spec.ExpandOptions{RelativeBase: path, SkipSchemas: true, PathLoader: testLoader}),
 		)
 
-		t.Run("all $ref properly reolve when expanding again", func(t *testing.T) {
+		t.Run("all $ref properly resolve when expanding again", func(t *testing.T) {
 			require.NoError(t,
 				spec.ExpandSpec(sp, &spec.ExpandOptions{RelativeBase: path, SkipSchemas: false, PathLoader: testLoader}),
 			)
@@ -95,7 +84,7 @@ func assertPaths1429(t testing.TB, sp *spec.Swagger) {
 			require.NotNilf(t, param.Schema, "expected param schema not to be nil")
 			// all param fixtures are body param with schema
 			// all $ref expanded
-			assert.Equal(t, "", param.Schema.Ref.String())
+			assert.Empty(t, param.Schema.Ref.String())
 		}
 
 		for code, response := range pi.Get.Responses.StatusCodeResponses {
@@ -105,7 +94,7 @@ func assertPaths1429(t testing.TB, sp *spec.Swagger) {
 				continue
 			}
 			require.NotNilf(t, response.Schema, "expected response schema not to be nil")
-			assert.Equal(t, "", response.Schema.Ref.String())
+			assert.Empty(t, response.Schema.Ref.String())
 		}
 	}
 }
@@ -119,7 +108,7 @@ func assertPaths1429SkipSchema(t testing.TB, sp *spec.Swagger) {
 			switch param.Name {
 			case "plainRequest":
 				// this one is expanded
-				assert.Equal(t, "", param.Schema.Ref.String())
+				assert.Empty(t, param.Schema.Ref.String())
 				continue
 			case "nestedBody":
 				// this one is local
@@ -144,7 +133,7 @@ func assertPaths1429SkipSchema(t testing.TB, sp *spec.Swagger) {
 				assert.Contains(t, response.Schema.Ref.String(), "remote/remote.yaml#/")
 				continue
 			case 404:
-				assert.Equal(t, "", response.Schema.Ref.String())
+				assert.Empty(t, response.Schema.Ref.String())
 				continue
 			}
 			assert.Containsf(t, response.Schema.Ref.String(), "responses.yaml#/", "expected remote ref at resp. %d", code)

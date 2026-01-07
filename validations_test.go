@@ -1,45 +1,47 @@
+// SPDX-FileCopyrightText: Copyright 2015-2025 go-swagger maintainers
+// SPDX-License-Identifier: Apache-2.0
+
 package spec
 
 import (
 	"testing"
 
-	"github.com/go-openapi/swag"
-	"github.com/stretchr/testify/require"
+	"github.com/go-openapi/swag/conv"
+	"github.com/go-openapi/testify/v2/require"
 )
 
 func mkVal() SchemaValidations {
 	return SchemaValidations{
 		CommonValidations: CommonValidations{
-			Maximum:          swag.Float64(2.5),
+			Maximum:          conv.Pointer(2.5),
 			ExclusiveMaximum: true,
-			Minimum:          swag.Float64(3.4),
+			Minimum:          conv.Pointer(3.4),
 			ExclusiveMinimum: true,
-			MaxLength:        swag.Int64(15),
-			MinLength:        swag.Int64(16),
+			MaxLength:        conv.Pointer(int64(15)),
+			MinLength:        conv.Pointer(int64(16)),
 			Pattern:          "abc",
-			MaxItems:         swag.Int64(17),
-			MinItems:         swag.Int64(18),
+			MaxItems:         conv.Pointer(int64(17)),
+			MinItems:         conv.Pointer(int64(18)),
 			UniqueItems:      true,
-			MultipleOf:       swag.Float64(4.4),
-			Enum:             []interface{}{"a", 12.5},
+			MultipleOf:       conv.Pointer(4.4),
+			Enum:             []any{"a", 12.5},
 		},
 		PatternProperties: SchemaProperties{
 			"x": *BooleanProperty(),
 			"y": *BooleanProperty(),
 		},
-		MinProperties: swag.Int64(19),
-		MaxProperties: swag.Int64(20),
+		MinProperties: conv.Pointer(int64(19)),
+		MaxProperties: conv.Pointer(int64(20)),
 	}
 }
 
 func TestValidations(t *testing.T) {
-
 	var cv CommonValidations
 	val := mkVal()
 	cv.SetValidations(val)
 
 	expectedCV := val.CommonValidations
-	require.EqualValues(t, expectedCV, cv)
+	require.Equal(t, expectedCV, cv)
 
 	require.True(t, cv.HasArrayValidations())
 	require.True(t, cv.HasNumberValidations())
@@ -78,16 +80,16 @@ func TestValidations(t *testing.T) {
 
 	val = mkVal()
 	cv.SetValidations(val)
-	require.EqualValues(t, expectedSV, cv.Validations())
+	require.Equal(t, expectedSV, cv.Validations())
 
 	var sv SchemaValidations
 	val = mkVal()
 	sv.SetValidations(val)
 
 	expectedSV = val
-	require.EqualValues(t, expectedSV, sv)
+	require.Equal(t, expectedSV, sv)
 
-	require.EqualValues(t, val, sv.Validations())
+	require.Equal(t, val, sv.Validations())
 
 	require.True(t, sv.HasObjectValidations())
 	sv.MinProperties = nil
@@ -109,7 +111,7 @@ func TestValidations(t *testing.T) {
 	require.False(t, cv.HasArrayValidations())
 
 	sv.SetValidations(val)
-	sv.ClearObjectValidations(func(validation string, _ interface{}) {
+	sv.ClearObjectValidations(func(validation string, _ any) {
 		switch validation {
 		case "minProperties", "maxProperties", "patternProperties":
 			return

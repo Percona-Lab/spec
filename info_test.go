@@ -1,16 +1,5 @@
-// Copyright 2015 go-swagger maintainers
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-FileCopyrightText: Copyright 2015-2025 go-swagger maintainers
+// SPDX-License-Identifier: Apache-2.0
 
 package spec
 
@@ -18,8 +7,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/go-openapi/testify/v2/assert"
+	"github.com/go-openapi/testify/v2/require"
 )
 
 const infoJSON = `{
@@ -39,7 +28,7 @@ const infoJSON = `{
 	"x-framework": "go-swagger"
 }`
 
-var info = Info{
+var testInfo = Info{ //nolint:gochecknoglobals
 	InfoProps: InfoProps{
 		Version: "1.0.9-abcd",
 		Title:   "Swagger Sample API",
@@ -47,30 +36,33 @@ var info = Info{
 			"the swagger-2.0 specification",
 		TermsOfService: "http://helloreverb.com/terms/",
 		Contact:        &ContactInfo{ContactInfoProps: ContactInfoProps{Name: "wordnik api team", URL: "http://developer.wordnik.com"}},
-		License: &License{LicenseProps: LicenseProps{
-			Name: "Creative Commons 4.0 International",
-			URL:  "http://creativecommons.org/licenses/by/4.0/",
-		},
+		License: &License{
+			LicenseProps: LicenseProps{
+				Name: "Creative Commons 4.0 International",
+				URL:  "http://creativecommons.org/licenses/by/4.0/",
+			},
 		},
 	},
-	VendorExtensible: VendorExtensible{Extensions: map[string]interface{}{"x-framework": "go-swagger"}},
+	VendorExtensible: VendorExtensible{Extensions: map[string]any{"x-framework": "go-swagger"}},
 }
 
-func TestIntegrationInfo_Serialize(t *testing.T) {
-	b, err := json.MarshalIndent(info, "", "\t")
-	require.NoError(t, err)
-	assert.Equal(t, infoJSON, string(b))
-}
+func TestInfo(t *testing.T) {
+	t.Run("should marshal Info", func(t *testing.T) {
+		b, err := json.MarshalIndent(testInfo, "", "\t")
+		require.NoError(t, err)
+		assert.JSONEq(t, infoJSON, string(b))
+	})
 
-func TestIntegrationInfo_Deserialize(t *testing.T) {
-	actual := Info{}
-	require.NoError(t, json.Unmarshal([]byte(infoJSON), &actual))
-	assert.EqualValues(t, info, actual)
-}
+	t.Run("should unmarshal Info", func(t *testing.T) {
+		actual := Info{}
+		require.NoError(t, json.Unmarshal([]byte(infoJSON), &actual))
+		assert.Equal(t, testInfo, actual)
+	})
 
-func TestInfoGobEncoding(t *testing.T) {
-	var src, dst Info
-	require.NoError(t, json.Unmarshal([]byte(infoJSON), &src))
-	assert.EqualValues(t, src, info)
-	doTestAnyGobEncoding(t, &src, &dst)
+	t.Run("should GobEncode Info", func(t *testing.T) {
+		var src, dst Info
+		require.NoError(t, json.Unmarshal([]byte(infoJSON), &src))
+		assert.Equal(t, src, testInfo)
+		doTestAnyGobEncoding(t, &src, &dst)
+	})
 }

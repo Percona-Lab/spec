@@ -1,16 +1,5 @@
-// Copyright 2015 go-swagger maintainers
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-FileCopyrightText: Copyright 2015-2025 go-swagger maintainers
+// SPDX-License-Identifier: Apache-2.0
 
 package spec
 
@@ -18,9 +7,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/go-openapi/swag"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/go-openapi/swag/conv"
+	"github.com/go-openapi/testify/v2/assert"
+	"github.com/go-openapi/testify/v2/require"
 )
 
 const epsilon = 1e-9
@@ -28,12 +17,13 @@ const epsilon = 1e-9
 func float64Ptr(f float64) *float64 {
 	return &f
 }
+
 func int64Ptr(f int64) *int64 {
 	return &f
 }
 
 var header = Header{
-	VendorExtensible: VendorExtensible{Extensions: map[string]interface{}{
+	VendorExtensible: VendorExtensible{Extensions: map[string]any{
 		"x-framework": "swagger-go",
 	}},
 	HeaderProps: HeaderProps{Description: "the description of this header"},
@@ -57,7 +47,7 @@ var header = Header{
 		MinItems:         int64Ptr(5),
 		UniqueItems:      true,
 		MultipleOf:       float64Ptr(5),
-		Enum:             []interface{}{"hello", "world"},
+		Enum:             []any{"hello", "world"},
 	},
 }
 
@@ -87,7 +77,7 @@ const headerJSON = `{
 func TestIntegrationHeader(t *testing.T) {
 	var actual Header
 	require.NoError(t, json.Unmarshal([]byte(headerJSON), &actual))
-	assert.EqualValues(t, actual, header)
+	assert.Equal(t, actual, header)
 
 	assertParsesJSON(t, headerJSON, header)
 }
@@ -104,13 +94,13 @@ func TestJSONLookupHeader(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "8", def)
 
-	var x *interface{}
+	var x *any
 	res, err = header.JSONLookup("x-framework")
 	require.NoError(t, err)
 	require.NotNil(t, res)
 	require.IsType(t, x, res)
 
-	x, ok = res.(*interface{})
+	x, ok = res.(*any)
 	require.True(t, ok)
 	assert.EqualValues(t, "swagger-go", *x)
 
@@ -118,15 +108,15 @@ func TestJSONLookupHeader(t *testing.T) {
 	require.Error(t, err)
 	require.Nil(t, res)
 
-	var max *float64
+	var maximum *float64
 	res, err = header.JSONLookup("maximum")
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.IsType(t, max, res)
+	require.IsType(t, maximum, res)
 
-	max, ok = res.(*float64)
+	maximum, ok = res.(*float64)
 	require.True(t, ok)
-	assert.InDelta(t, float64(100), *max, epsilon)
+	assert.InDelta(t, float64(100), *maximum, epsilon)
 }
 
 func TestResponseHeaueder(t *testing.T) {
@@ -144,7 +134,7 @@ func TestWithHeader(t *testing.T) {
 	i := new(Items).Typed("string", "date")
 	h = new(Header).CollectionOf(i, "pipe")
 
-	assert.EqualValues(t, *i, *h.Items)
+	assert.Equal(t, *i, *h.Items)
 	assert.Equal(t, "pipe", h.CollectionFormat)
 
 	h = new(Header).WithDefault([]string{"a", "b", "c"}).WithMaxLength(10).WithMinLength(3)
@@ -162,7 +152,7 @@ func TestWithHeader(t *testing.T) {
 	h = new(Header).WithEnum("a", "b", "c")
 	assert.Equal(t, Header{
 		CommonValidations: CommonValidations{
-			Enum: []interface{}{
+			Enum: []any{
 				"a",
 				"b",
 				"c",
@@ -172,6 +162,6 @@ func TestWithHeader(t *testing.T) {
 }
 
 func TestHeaderWithValidation(t *testing.T) {
-	h := new(Header).WithValidations(CommonValidations{MaxLength: swag.Int64(15)})
-	assert.EqualValues(t, swag.Int64(15), h.MaxLength)
+	h := new(Header).WithValidations(CommonValidations{MaxLength: conv.Pointer(int64(15))})
+	assert.Equal(t, conv.Pointer(int64(15)), h.MaxLength)
 }

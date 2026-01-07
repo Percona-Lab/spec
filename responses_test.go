@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright 2015-2025 go-swagger maintainers
+// SPDX-License-Identifier: Apache-2.0
+
 // Copyright 2017 go-swagger maintainers
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,13 +21,13 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/go-openapi/testify/v2/assert"
+	"github.com/go-openapi/testify/v2/require"
 )
 
 var responses = Responses{
 	VendorExtensible: VendorExtensible{
-		Extensions: map[string]interface{}{
+		Extensions: map[string]any{
 			"x-go-name": "PutDogExists",
 		},
 	},
@@ -33,7 +36,7 @@ var responses = Responses{
 			200: {
 				Refable: Refable{Ref: MustCreateRef("Dog")},
 				VendorExtensible: VendorExtensible{
-					Extensions: map[string]interface{}{
+					Extensions: map[string]any{
 						"x-go-name": "PutDogExists",
 					},
 				},
@@ -61,7 +64,7 @@ const responsesJSON = `{
 func TestIntegrationResponses(t *testing.T) {
 	var actual Responses
 	require.NoError(t, json.Unmarshal([]byte(responsesJSON), &actual))
-	assert.EqualValues(t, actual, responses)
+	assert.Equal(t, actual, responses)
 
 	assertParsesJSON(t, responsesJSON, responses)
 }
@@ -77,7 +80,7 @@ func TestJSONLookupResponses(t *testing.T) {
 
 	ref, ok := res.(*Ref)
 	require.True(t, ok)
-	assert.EqualValues(t, MustCreateRef("Dog"), *ref)
+	assert.Equal(t, MustCreateRef("Dog"), *ref)
 
 	var def string
 	res, err = resp200.JSONLookup("description")
@@ -89,13 +92,13 @@ func TestJSONLookupResponses(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "Dog exists", def)
 
-	var x *interface{}
+	var x *any
 	res, err = responses.JSONLookup("x-go-name")
 	require.NoError(t, err)
 	require.NotNil(t, res)
 	require.IsType(t, x, res)
 
-	x, ok = res.(*interface{})
+	x, ok = res.(*any)
 	require.True(t, ok)
 	assert.EqualValues(t, "PutDogExists", *x)
 

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright 2015-2025 go-swagger maintainers
+// SPDX-License-Identifier: Apache-2.0
+
 package spec_test
 
 import (
@@ -8,9 +11,9 @@ import (
 	"testing"
 
 	"github.com/go-openapi/spec"
-	"github.com/go-openapi/swag"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/go-openapi/swag/loading"
+	"github.com/go-openapi/testify/v2/assert"
+	"github.com/go-openapi/testify/v2/require"
 )
 
 var (
@@ -21,10 +24,10 @@ var (
 func init() {
 	// mimics what the go-openapi/load does
 	testLoader = func(path string) (json.RawMessage, error) {
-		if swag.YAMLMatcher(path) {
-			return swag.YAMLDoc(path)
+		if loading.YAMLMatcher(path) {
+			return loading.YAMLDoc(path)
 		}
-		data, err := swag.LoadFromFileOrHTTP(path)
+		data, err := loading.LoadFromFileOrHTTP(path)
 		if err != nil {
 			return nil, err
 		}
@@ -71,7 +74,8 @@ func assertRefInJSONRegexp(t testing.TB, jazon, match string) {
 // assertRefExpand ensures that all $ref in some json doc expand properly against a root document.
 //
 // "exclude" is a regexp pattern to ignore certain $ref (e.g. some specs may embed $ref that are not processed, such as extensions).
-func assertRefExpand(t *testing.T, jazon, _ string, root interface{}, opts ...*spec.ExpandOptions) {
+func assertRefExpand(t *testing.T, jazon, _ string, root any, opts ...*spec.ExpandOptions) {
+	t.Helper()
 	if len(opts) > 0 {
 		assertRefWithFunc(t, "expand-with-base", jazon, "", func(t *testing.T, match string) {
 			ref := spec.RefSchema(match)
@@ -87,7 +91,8 @@ func assertRefExpand(t *testing.T, jazon, _ string, root interface{}, opts ...*s
 	})
 }
 
-func assertRefResolve(t *testing.T, jazon, exclude string, root interface{}, opts ...*spec.ExpandOptions) {
+func assertRefResolve(t *testing.T, jazon, exclude string, root any, opts ...*spec.ExpandOptions) {
+	t.Helper()
 	assertRefWithFunc(t, "resolve", jazon, exclude, func(t *testing.T, match string) {
 		ref := spec.MustCreateRef(match)
 		var (
@@ -110,6 +115,7 @@ func assertRefResolve(t *testing.T, jazon, exclude string, root interface{}, opt
 //
 // "exclude" is a regexp pattern to ignore certain $ref (e.g. some specs may embed $ref that are not processed, such as extensions).
 func assertRefWithFunc(t *testing.T, name, jazon, exclude string, asserter func(*testing.T, string)) {
+	t.Helper()
 	filterRex := regexp.MustCompile(exclude)
 	m := rex.FindAllStringSubmatch(jazon, -1)
 	require.NotNil(t, m)
@@ -136,15 +142,17 @@ func assertRefWithFunc(t *testing.T, name, jazon, exclude string, asserter func(
 	}
 }
 
-func asJSON(t testing.TB, sp interface{}) string {
+func asJSON(tb testing.TB, sp any) string {
+	tb.Helper()
 	bbb, err := json.MarshalIndent(sp, "", " ")
-	require.NoError(t, err)
+	require.NoError(tb, err)
 
 	return string(bbb)
 }
 
 // assertNoRef ensures that no $ref is remaining in json doc
 func assertNoRef(t testing.TB, jazon string) {
+	t.Helper()
 	m := rex.FindAllStringSubmatch(jazon, -1)
 	require.Nil(t, m)
 }

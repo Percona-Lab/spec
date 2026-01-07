@@ -1,16 +1,5 @@
-// Copyright 2015 go-swagger maintainers
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//    http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// SPDX-FileCopyrightText: Copyright 2015-2025 go-swagger maintainers
+// SPDX-License-Identifier: Apache-2.0
 
 package spec
 
@@ -18,13 +7,13 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/go-openapi/swag"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/go-openapi/swag/conv"
+	"github.com/go-openapi/testify/v2/assert"
+	"github.com/go-openapi/testify/v2/require"
 )
 
 var parameter = Parameter{
-	VendorExtensible: VendorExtensible{Extensions: map[string]interface{}{
+	VendorExtensible: VendorExtensible{Extensions: map[string]any{
 		"x-framework": "swagger-go",
 	}},
 	Refable: Refable{Ref: MustCreateRef("Dog")},
@@ -40,7 +29,7 @@ var parameter = Parameter{
 		MinItems:         int64Ptr(5),
 		UniqueItems:      true,
 		MultipleOf:       float64Ptr(5),
-		Enum:             []interface{}{"hello", "world"},
+		Enum:             []any{"hello", "world"},
 	},
 	SimpleSchema: SimpleSchema{
 		Type:             "string",
@@ -94,7 +83,7 @@ var parameterJSON = `{
 func TestIntegrationParameter(t *testing.T) {
 	var actual Parameter
 	require.NoError(t, json.Unmarshal([]byte(parameterJSON), &actual))
-	assert.EqualValues(t, actual, parameter)
+	assert.Equal(t, actual, parameter)
 
 	assertParsesJSON(t, parameterJSON, parameter)
 }
@@ -153,7 +142,6 @@ func TestParameterSerialization(t *testing.T) {
 	assertSerializeJSON(t,
 		BodyParam("", ArrayProperty(RefProperty("Cat"))),
 		`{"in":"body","schema":{"type":"array","items":{"$ref":"Cat"}}}`)
-
 }
 
 func TestParameterGobEncoding(t *testing.T) {
@@ -163,6 +151,6 @@ func TestParameterGobEncoding(t *testing.T) {
 }
 
 func TestParametersWithValidation(t *testing.T) {
-	p := new(Parameter).WithValidations(CommonValidations{MaxLength: swag.Int64(15)})
-	assert.EqualValues(t, swag.Int64(15), p.MaxLength)
+	p := new(Parameter).WithValidations(CommonValidations{MaxLength: conv.Pointer(int64(15))})
+	assert.Equal(t, conv.Pointer(int64(15)), p.MaxLength)
 }

@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: Copyright 2015-2025 go-swagger maintainers
+// SPDX-License-Identifier: Apache-2.0
+
 package spec
 
 import (
@@ -9,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/go-openapi/testify/v2/assert"
+	"github.com/go-openapi/testify/v2/require"
 )
 
 func TestExpandCircular_Issue3(t *testing.T) {
@@ -263,7 +266,12 @@ func TestCircular_RemoteExpandAzure(t *testing.T) {
 	require.NotNil(t, pth1)
 
 	// check expected remaining $ref
-	assertRefInJSONRegexp(t, jazon, `^(#/definitions/)|(networkInterface.json#/definitions/)|(networkSecurityGroup.json#/definitions/)|(network.json#/definitions)|(virtualNetworkTap.json#/definitions/)|(virtualNetwork.json#/definitions/)|(privateEndpoint.json#/definitions/)|(\./examples/)`)
+	assertRefInJSONRegexp(t, jazon,
+		`^(#/definitions/)|(networkInterface.json#/definitions/)|`+
+			`(networkSecurityGroup.json#/definitions/)|(network.json#/definitions)|`+
+			`(virtualNetworkTap.json#/definitions/)|(virtualNetwork.json#/definitions/)|`+
+			`(privateEndpoint.json#/definitions/)|(\./examples/)`,
+	)
 
 	// check all $ref resolve in the expanded root
 	// (filter out the remaining $ref in x-ms-example extensions, which are not expanded)

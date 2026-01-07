@@ -1,18 +1,20 @@
 module github.com/go-openapi/spec
 
 require (
-	github.com/go-openapi/jsonpointer v0.21.0
-	github.com/go-openapi/jsonreference v0.21.0
-	github.com/go-openapi/swag v0.23.0
-	github.com/stretchr/testify v1.9.0
-	gopkg.in/yaml.v3 v3.0.1
+	github.com/go-openapi/jsonpointer v0.22.4
+	github.com/go-openapi/jsonreference v0.21.4
+	github.com/go-openapi/swag/conv v0.25.4
+	github.com/go-openapi/swag/jsonname v0.25.4
+	github.com/go-openapi/swag/jsonutils v0.25.4
+	github.com/go-openapi/swag/loading v0.25.4
+	github.com/go-openapi/swag/stringutils v0.25.4
+	github.com/go-openapi/testify/v2 v2.0.2
+	go.yaml.in/yaml/v3 v3.0.4
 )
 
 require (
-	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/josharian/intern v1.0.0 // indirect
-	github.com/mailru/easyjson v0.7.7 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/go-openapi/swag/typeutils v0.25.4 // indirect
+	github.com/go-openapi/swag/yamlutils v0.25.4 // indirect
 )
 
-go 1.20
+go 1.25.5
