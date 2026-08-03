@@ -11,7 +11,7 @@ import (
 	"github.com/go-openapi/testify/v2/assert"
 )
 
-var logMutex = &sync.Mutex{} //nolint:gochecknoglobals
+var logMutex = &sync.Mutex{} //nolint:gochecknoglobals // test fixture
 
 func TestDebug(t *testing.T) {
 	// usetesting linter disabled until https://github.com/golang/go/issues/71544 is fixed for windows
@@ -42,5 +42,5 @@ func TestDebug(t *testing.T) {
 	buf := make([]byte, 500)
 	_, _ = flushed.Read(buf)
 	specLogger.SetOutput(os.Stdout)
-	assert.Contains(t, string(buf), "A debug")
+	assert.StringContainsT(t, string(buf), "A debug")
 }

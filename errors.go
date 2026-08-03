@@ -5,7 +5,7 @@ package spec
 
 import "errors"
 
-// Error codes
+// Error codes.
 var (
 	// ErrUnknownTypeForReference indicates that a resolved reference was found in an unsupported container type.
 	ErrUnknownTypeForReference = errors.New("unknown type for the resolved reference")
@@ -19,6 +19,13 @@ var (
 
 	// ErrExpandUnsupportedType indicates that $ref expansion is attempted on some invalid type.
 	ErrExpandUnsupportedType = errors.New("expand: unsupported type. Input should be of type *Parameter or *Response")
+
+	// ErrExpandTooManyNodes indicates that $ref expansion exceeded the maximum number of schema nodes
+	// allowed for a single expansion (see ExpandOptions.MaxExpansionNodes).
+	//
+	// This is a safeguard against maliciously crafted specifications that expand to an exponential
+	// number of nodes from a small input (a $ref amplification / "billion laughs" style attack).
+	ErrExpandTooManyNodes = errors.New("expand: too many schema nodes: expansion budget exceeded (see ExpandOptions.MaxExpansionNodes)")
 
 	// ErrSpec is an error raised by the spec package.
 	ErrSpec = errors.New("spec error")

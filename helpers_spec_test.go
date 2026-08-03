@@ -18,10 +18,10 @@ import (
 
 var (
 	rex        = regexp.MustCompile(`"\$ref":\s*"(.*?)"`)
-	testLoader func(string) (json.RawMessage, error)
+	testLoader func(string) (json.RawMessage, error) //nolint:gochecknoglobals // test fixture
 )
 
-func init() {
+func init() { //nolint:gochecknoinits // sets up test loader for spec loading fixtures
 	// mimics what the go-openapi/load does
 	testLoader = func(path string) (json.RawMessage, error) {
 		if loading.YAMLMatcher(path) {
@@ -51,7 +51,7 @@ func assertRefInJSON(t testing.TB, jazon, prefix string) {
 
 	for _, matched := range m {
 		subMatch := matched[1]
-		assert.True(t, strings.HasPrefix(subMatch, prefix),
+		assert.TrueT(t, strings.HasPrefix(subMatch, prefix),
 			"expected $ref to match %q, got: %s", prefix, matched[0])
 	}
 }
@@ -66,7 +66,7 @@ func assertRefInJSONRegexp(t testing.TB, jazon, match string) {
 
 	for _, matched := range m {
 		subMatch := matched[1]
-		assert.True(t, refMatch.MatchString(subMatch),
+		assert.TrueT(t, refMatch.MatchString(subMatch),
 			"expected $ref to match %q, got: %s", match, matched[0])
 	}
 }
@@ -75,7 +75,6 @@ func assertRefInJSONRegexp(t testing.TB, jazon, match string) {
 //
 // "exclude" is a regexp pattern to ignore certain $ref (e.g. some specs may embed $ref that are not processed, such as extensions).
 func assertRefExpand(t *testing.T, jazon, _ string, root any, opts ...*spec.ExpandOptions) {
-	t.Helper()
 	if len(opts) > 0 {
 		assertRefWithFunc(t, "expand-with-base", jazon, "", func(t *testing.T, match string) {
 			ref := spec.RefSchema(match)
@@ -92,7 +91,6 @@ func assertRefExpand(t *testing.T, jazon, _ string, root any, opts ...*spec.Expa
 }
 
 func assertRefResolve(t *testing.T, jazon, exclude string, root any, opts ...*spec.ExpandOptions) {
-	t.Helper()
 	assertRefWithFunc(t, "resolve", jazon, exclude, func(t *testing.T, match string) {
 		ref := spec.MustCreateRef(match)
 		var (
@@ -115,7 +113,6 @@ func assertRefResolve(t *testing.T, jazon, exclude string, root any, opts ...*sp
 //
 // "exclude" is a regexp pattern to ignore certain $ref (e.g. some specs may embed $ref that are not processed, such as extensions).
 func assertRefWithFunc(t *testing.T, name, jazon, exclude string, asserter func(*testing.T, string)) {
-	t.Helper()
 	filterRex := regexp.MustCompile(exclude)
 	m := rex.FindAllStringSubmatch(jazon, -1)
 	require.NotNil(t, m)
@@ -142,17 +139,15 @@ func assertRefWithFunc(t *testing.T, name, jazon, exclude string, asserter func(
 	}
 }
 
-func asJSON(tb testing.TB, sp any) string {
-	tb.Helper()
+func asJSON(t testing.TB, sp any) string {
 	bbb, err := json.MarshalIndent(sp, "", " ")
-	require.NoError(tb, err)
+	require.NoError(t, err)
 
 	return string(bbb)
 }
 
-// assertNoRef ensures that no $ref is remaining in json doc
+// assertNoRef ensures that no $ref is remaining in json doc.
 func assertNoRef(t testing.TB, jazon string) {
-	t.Helper()
 	m := rex.FindAllStringSubmatch(jazon, -1)
 	require.Nil(t, m)
 }

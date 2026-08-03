@@ -4,18 +4,24 @@ linters:
   disable:
     - depguard
     - funlen
+    - goconst
     - godox
+    - gomodguard
+    - gomodguard_v2
     - exhaustruct
     - nlreturn
     - nonamedreturns
+    - noinlineerr
     - paralleltest
+    - recvcheck
     - testpackage
+    - thelper
     - tparallel
     - varnamelen
     - whitespace
     - wrapcheck
     - wsl
-    - typecheck
+    - wsl_v5
   settings:
     dupl:
       threshold: 200

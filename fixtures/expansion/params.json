@@ -18,10 +18,7 @@
   "paths": {
     "/cars/{id}": {
       "parameters": [
-        {
-          "$ref": "#/parameters/id",
-          "x-order": 1
-        }
+        { "$ref": "#/parameters/id"}
       ]
     }
   }

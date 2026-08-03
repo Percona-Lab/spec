@@ -5,6 +5,9 @@ package spec
 
 import (
 	"testing"
+
+	"github.com/go-openapi/testify/v2/assert"
+	"github.com/go-openapi/testify/v2/require"
 )
 
 func TestPropertySerialization(t *testing.T) {
@@ -40,7 +43,29 @@ func TestPropertySerialization(t *testing.T) {
 
 	for _, v := range propSerData {
 		t.Log("roundtripping for", v.JSON)
-		assertSerializeJSON(t, v.Schema, v.JSON)
-		assertParsesJSON(t, v.JSON, v.Schema)
+		assert.JSONMarshalAsT(t, v.JSON, v.Schema)
+		assert.JSONUnmarshalAsT(t, v.Schema, v.JSON)
 	}
+}
+
+func TestOrderedSchemaItem_Issue216(t *testing.T) {
+	stringSchema := new(Schema).Typed("string", "")
+	items := OrderSchemaItems{
+		{
+			Name:   "emails\n", // Key contains newline character
+			Schema: *stringSchema,
+		},
+		{
+			Name:   "regular",
+			Schema: *stringSchema,
+		},
+	}
+
+	jazon, err := items.MarshalJSON()
+	require.NoError(t, err)
+
+	require.JSONEqBytes(t,
+		[]byte(`{"emails\n":{"type":"string"},"regular":{"type":"string"}}`),
+		jazon,
+	)
 }

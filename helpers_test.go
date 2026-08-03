@@ -6,6 +6,10 @@ package spec
 import (
 	"encoding/json"
 	"fmt"
+	"io/fs"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -16,6 +20,22 @@ import (
 )
 
 var rex = regexp.MustCompile(`"\$ref":\s*"(.*?)"`)
+
+// fixtureServer returns an httptest.Server serving the given subdirectory
+// from the embedded fixtureAssets FS. This avoids OS-level file serving
+// (and the Windows TransmitFile/sendfile code path that has a data race
+// in Go 1.26).
+func fixtureServer(t testing.TB, dir string) *httptest.Server {
+	t.Helper()
+
+	sub, err := fs.Sub(fixtureAssets, filepath.ToSlash(dir))
+	require.NoError(t, err)
+
+	server := httptest.NewServer(http.FileServerFS(sub))
+	t.Cleanup(server.Close)
+
+	return server
+}
 
 func jsonDoc(path string) (json.RawMessage, error) {
 	data, err := loading.LoadFromFileOrHTTP(path)
@@ -76,7 +96,7 @@ func assertRefInJSON(t testing.TB, jazon, prefix string) {
 
 	for _, matched := range m {
 		subMatch := matched[1]
-		assert.True(t, strings.HasPrefix(subMatch, prefix),
+		assert.TrueT(t, strings.HasPrefix(subMatch, prefix),
 			"expected $ref to match %q, got: %s", prefix, matched[0])
 	}
 }
@@ -94,12 +114,12 @@ func assertRefInJSONRegexp(t testing.TB, jazon, match string) {
 
 	for _, matched := range m {
 		subMatch := matched[1]
-		assert.True(t, refMatch.MatchString(subMatch),
+		assert.TrueT(t, refMatch.MatchString(subMatch),
 			"expected $ref to match %q, got: %s", match, matched[0])
 	}
 }
 
-// assertNoRef ensures that no $ref is remaining in json doc
+// assertNoRef ensures that no $ref is remaining in json doc.
 func assertNoRef(t testing.TB, jazon string) {
 	m := rex.FindAllStringSubmatch(jazon, -1)
 	require.Nil(t, m)
@@ -109,7 +129,6 @@ func assertNoRef(t testing.TB, jazon string) {
 //
 // "exclude" is a regexp pattern to ignore certain $ref (e.g. some specs may embed $ref that are not processed, such as extensions).
 func assertRefExpand(t *testing.T, jazon, _ string, root any, opts ...*ExpandOptions) {
-	t.Helper()
 	assertRefWithFunc(t, jazon, "", func(t *testing.T, match string) {
 		ref := RefSchema(match)
 		if len(opts) > 0 {
@@ -125,7 +144,6 @@ func assertRefExpand(t *testing.T, jazon, _ string, root any, opts ...*ExpandOpt
 //
 // "exclude" is a regexp pattern to ignore certain $ref (e.g. some specs may embed $ref that are not processed, such as extensions).
 func assertRefResolve(t *testing.T, jazon, exclude string, root any, opts ...*ExpandOptions) {
-	t.Helper()
 	assertRefWithFunc(t, jazon, exclude, func(t *testing.T, match string) {
 		ref := MustCreateRef(match)
 		var (
@@ -148,7 +166,6 @@ func assertRefResolve(t *testing.T, jazon, exclude string, root any, opts ...*Ex
 //
 // "exclude" is a regexp pattern to ignore certain $ref (e.g. some specs may embed $ref that are not processed, such as extensions).
 func assertRefWithFunc(t *testing.T, jazon, exclude string, asserter func(t *testing.T, match string)) {
-	t.Helper()
 	filterRex := regexp.MustCompile(exclude)
 	m := rex.FindAllStringSubmatch(jazon, -1)
 	require.NotNil(t, m)
@@ -171,10 +188,9 @@ func assertRefWithFunc(t *testing.T, jazon, exclude string, asserter func(t *tes
 	}
 }
 
-func asJSON(tb testing.TB, sp any) string {
-	tb.Helper()
+func asJSON(t testing.TB, sp any) string {
 	bbb, err := json.MarshalIndent(sp, "", " ")
-	require.NoError(tb, err)
+	require.NoError(t, err)
 
 	return string(bbb)
 }
