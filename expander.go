@@ -462,7 +462,15 @@ func expandSchemaRef(target Schema, parentRefs []string, resolver *schemaLoader,
 
 	basePath = resolver.updateBasePath(transitiveResolver, normalizedBasePath)
 
-	return expandSchema(*t, parentRefs, transitiveResolver, basePath)
+	expanded, err := expandSchema(*t, parentRefs, transitiveResolver, basePath)
+	if expanded != nil {
+		// Percona: keep the extensions declared next to the $ref (e.g. x-order) on the expanded schema.
+		for k, v := range target.Extensions {
+			expanded.AddExtension(k, v)
+		}
+	}
+
+	return expanded, err
 }
 
 func expandPathItem(pathItem *PathItem, resolver *schemaLoader, basePath string) error {

@@ -1082,3 +1082,26 @@ func TestExpand_Issue145(t *testing.T) {
 		})
 	})
 }
+
+// TestExpand_KeepsSiblingExtensions asserts the Percona-specific behavior of keeping the extensions
+// declared next to a $ref (e.g. x-order) on the expanded schema.
+func TestExpand_KeepsSiblingExtensions(t *testing.T) {
+	root := new(Swagger)
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"swagger": "2.0",
+		"definitions": {
+			"Bar": {"type": "object"},
+			"Foo": {
+				"type": "object",
+				"properties": {
+					"bar": {"$ref": "#/definitions/Bar", "x-order": 1}
+				}
+			}
+		}
+	}`), root))
+
+	sch := RefSchema("#/definitions/Foo")
+	require.NoError(t, ExpandSchema(sch, root, nil))
+
+	assert.Equal(t, 1.0, sch.Properties["bar"].Extensions["x-order"])
+}
